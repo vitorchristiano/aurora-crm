@@ -355,12 +355,57 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 .loading-screen { display: flex; align-items: center; justify-content: center; height: 300px; flex-direction: column; gap: 12px; color: var(--muted); font-size: 13px; }
 
+/* ── MÉTRICAS ── */
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media (max-width: 900px) { .metrics-grid { grid-template-columns: 1fr; } }
+
+.funnel-wrap { position: relative; padding: 20px 0; }
+.funnel-stage {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 10px; cursor: pointer;
+  transition: transform .15s;
+}
+.funnel-stage:hover { transform: translateX(4px); }
+.funnel-bar-wrap { flex: 1; position: relative; height: 52px; display: flex; align-items: center; }
+.funnel-bar {
+  height: 100%; border-radius: 6px; display: flex; align-items: center; padding: 0 16px;
+  font-weight: 700; font-size: 14px; color: #fff; transition: width .8s cubic-bezier(.4,0,.2,1);
+  position: relative; min-width: 60px; white-space: nowrap;
+}
+.funnel-bar::after {
+  content: ''; position: absolute; right: -12px; top: 0; bottom: 0;
+  width: 0; height: 0;
+  border-top: 26px solid transparent;
+  border-bottom: 26px solid transparent;
+  border-left: 13px solid currentColor;
+}
+.funnel-label { width: 130px; font-size: 12px; font-weight: 700; text-align: right; color: var(--muted); flex-shrink: 0; }
+.funnel-count { width: 50px; font-size: 20px; font-weight: 800; text-align: right; flex-shrink: 0; }
+.funnel-pct { width: 44px; font-size: 11px; color: var(--muted); text-align: right; flex-shrink: 0; }
+
+.conversion-arrow { text-align: center; font-size: 11px; color: var(--muted); margin: -4px 0 6px 146px; }
+
+.metric-stat { background: var(--surface2); border-radius: 10px; padding: 14px 18px; }
+.metric-stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 4px; }
+.metric-stat-value { font-size: 24px; font-weight: 800; }
+
+.stage-breakdown { display: flex; flex-direction: column; gap: 10px; }
+.sb-item { display: flex; align-items: center; gap: 10px; }
+.sb-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sb-name { font-size: 13px; flex: 1; }
+.sb-bar-wrap { width: 120px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.sb-bar { height: 100%; border-radius: 3px; transition: width .6s ease; }
+.sb-val { font-size: 12px; font-weight: 700; width: 30px; text-align: right; }
+
+[data-theme="light"] .funnel-bar { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+[data-theme="light"] .metric-stat { background: #f1f5f9; }
+
 @media (max-width: 768px) {
   .sidebar { width: 60px; }
   .sidebar-logo, .nav-item span, .sidebar-footer { display: none; }
   .main { margin-left: 60px; }
   .charts-row { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
+  .funnel-label { width: 80px; font-size: 10px; }
 }
 </style>
 </head>
@@ -400,6 +445,9 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
       </button>
       <button class="nav-item" onclick="showPage('crm',this)">
         <span class="nav-icon">🗂️</span><span>CRM</span>
+      </button>
+      <button class="nav-item" onclick="showPage('metrics',this)">
+        <span class="nav-icon">📈</span><span>Métricas</span>
       </button>
     </nav>
     <div class="sidebar-footer" id="sidebarUser"></div>
@@ -459,6 +507,42 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
         <div class="pagination" id="dashPagination" style="display:none;">
           <div class="pagination-info" id="dashPagInfo"></div>
           <div class="pagination-btns" id="dashPagBtns"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS PAGE -->
+    <div class="page" id="page-metrics">
+      <div class="page-header">
+        <div>
+          <h1>Métricas & Funil</h1>
+          <p>Visão geral do pipeline de vendas</p>
+        </div>
+        <button class="btn" style="background:var(--surface2);border:1px solid var(--border);" onclick="renderMetrics()">↻ Atualizar</button>
+      </div>
+
+      <!-- KPIs rápidos -->
+      <div id="metricsKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px;"></div>
+
+      <div class="metrics-grid">
+        <!-- Funil -->
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-title">Funil de oportunidades</div>
+          <div class="funnel-wrap" id="funnelWrap">
+            <div class="empty-state">Carregue o CRM primeiro para ver o funil.</div>
+          </div>
+        </div>
+
+        <!-- Breakdown por responsável -->
+        <div class="card">
+          <div class="card-title">Por responsável</div>
+          <div id="metricsByResp" class="stage-breakdown"><div class="empty-state" style="padding:20px;">—</div></div>
+        </div>
+
+        <!-- Breakdown por marketplace de origem -->
+        <div class="card">
+          <div class="card-title">Origem (marketplace)</div>
+          <div id="metricsByMkt" class="stage-breakdown"><div class="empty-state" style="padding:20px;">—</div></div>
         </div>
       </div>
     </div>
@@ -661,6 +745,10 @@ function showPage(id, btn){
   document.getElementById('page-'+id).classList.add('active');
   if(btn) btn.classList.add('active');
   if(id === 'crm' && !crmLoaded) loadCRM();
+  if(id === 'metrics') {
+    if(!crmLoaded) loadCRM().then(() => renderMetrics());
+    else renderMetrics();
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -1485,6 +1573,143 @@ function loadTheme(){
     if(icon) icon.textContent = '🌙';
     if(label) label.textContent = 'Tema escuro';
   }
+}
+
+
+// ════════════════════════════════════════════════
+//  MÉTRICAS & FUNIL
+// ════════════════════════════════════════════════
+const STAGE_COLORS = {
+  'Novo Lead':        '#8b5cf6',
+  'Em contato':       '#06b6d4',
+  'Proposta enviada': '#f59e0b',
+  'Fechado':          '#10b981',
+  'Perdido':          '#ef4444',
+};
+
+function renderMetrics(){
+  if(!crmLoaded || leads.length === 0){
+    document.getElementById('funnelWrap').innerHTML = '<div class="empty-state">Nenhum lead no CRM ainda.</div>';
+    return;
+  }
+
+  const total = leads.length;
+
+  // Contagem por etapa
+  const stageCounts = {};
+  STAGES.forEach(s => stageCounts[s] = 0);
+  leads.forEach(l => {
+    const s = l.etapa_kanban || 'Novo Lead';
+    if(stageCounts[s] !== undefined) stageCounts[s]++;
+    else stageCounts['Novo Lead']++;
+  });
+
+  const maxCount = Math.max(...Object.values(stageCounts), 1);
+  const fechados = stageCounts['Fechado'] || 0;
+  const perdidos = stageCounts['Perdido'] || 0;
+  const ativos   = total - perdidos;
+  const txConv   = total > 0 ? ((fechados / total) * 100).toFixed(1) : 0;
+
+  // KPIs
+  document.getElementById('metricsKpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total leads</div><div class="kpi-value">${total}</div><div class="kpi-sub">no pipeline</div></div>
+    <div class="kpi green"><div class="kpi-label">Fechados</div><div class="kpi-value">${fechados}</div><div class="kpi-sub">convertidos</div></div>
+    <div class="kpi"><div class="kpi-label">Taxa conversão</div><div class="kpi-value">${txConv}%</div><div class="kpi-sub">leads→fechado</div></div>
+    <div class="kpi amber"><div class="kpi-label">Em andamento</div><div class="kpi-value">${ativos}</div><div class="kpi-sub">oportunidades</div></div>
+    <div class="kpi rp"><div class="kpi-label">Perdidos</div><div class="kpi-value">${perdidos}</div><div class="kpi-sub">não convertidos</div></div>`;
+
+  // Funil
+  let funnelHTML = '';
+  const activeStages = STAGES.filter(s => s !== 'Perdido');
+  activeStages.forEach((stage, i) => {
+    const count = stageCounts[stage] || 0;
+    const pct   = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+    const width  = maxCount > 0 ? Math.max((count / maxCount) * 100, 4) : 4;
+    const color  = STAGE_COLORS[stage] || '#6366f1';
+
+    // Seta de conversão entre etapas
+    if(i > 0){
+      const prev = stageCounts[activeStages[i-1]] || 0;
+      const convPct = prev > 0 ? ((count / prev) * 100).toFixed(0) : 0;
+      funnelHTML += `<div class="conversion-arrow">↓ ${convPct}% avançaram</div>`;
+    }
+
+    funnelHTML += `
+      <div class="funnel-stage">
+        <div class="funnel-label">${stage}</div>
+        <div class="funnel-bar-wrap">
+          <div class="funnel-bar" style="width:${width}%;background:${color};color:${color};">
+            <span style="color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3);">${count} lead${count!==1?'s':''}</span>
+          </div>
+        </div>
+        <div class="funnel-count" style="color:${color};">${count}</div>
+        <div class="funnel-pct">${pct}%</div>
+      </div>`;
+  });
+
+  // Perdidos separado
+  const perdCount = stageCounts['Perdido'] || 0;
+  const perdPct   = total > 0 ? ((perdCount / total) * 100).toFixed(0) : 0;
+  const perdWidth = maxCount > 0 ? Math.max((perdCount / maxCount) * 100, 4) : 4;
+  funnelHTML += `
+    <div style="border-top:1px solid var(--border);margin:14px 0 10px;"></div>
+    <div class="funnel-stage">
+      <div class="funnel-label" style="color:#ef4444;">Perdido</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${perdWidth}%;background:#ef4444;">
+          <span style="color:#fff;">${perdCount} lead${perdCount!==1?'s':''}</span>
+        </div>
+      </div>
+      <div class="funnel-count" style="color:#ef4444;">${perdCount}</div>
+      <div class="funnel-pct">${perdPct}%</div>
+    </div>`;
+
+  document.getElementById('funnelWrap').innerHTML = funnelHTML;
+
+  // Por responsável
+  const byResp = {};
+  leads.forEach(l => {
+    const r = l.responsavel || 'Sem responsável';
+    byResp[r] = (byResp[r] || 0) + 1;
+  });
+  const maxResp = Math.max(...Object.values(byResp), 1);
+  const respColors = ['#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#6366f1'];
+  document.getElementById('metricsByResp').innerHTML = Object.entries(byResp)
+    .sort((a,b) => b[1]-a[1]).slice(0,8)
+    .map(([name, count], i) => {
+      const pct = ((count/total)*100).toFixed(0);
+      const color = respColors[i % respColors.length];
+      return `<div class="sb-item">
+        <div class="sb-dot" style="background:${color};"></div>
+        <div class="sb-name">${esc(name)}</div>
+        <div class="sb-bar-wrap"><div class="sb-bar" style="width:${(count/maxResp)*100}%;background:${color};"></div></div>
+        <div class="sb-val" style="color:${color};">${count}</div>
+      </div>`;
+    }).join('') || '<div class="empty-state" style="padding:20px;">Nenhum responsável definido.</div>';
+
+  // Por marketplace (do dashboard)
+  const byMkt = { RP: 0, JPaola: 0, FCS: 0, 'Sem origem': 0 };
+  leads.forEach(l => {
+    const mkt = l.marketplace || '';
+    if(mkt.includes('RP')) byMkt['RP']++;
+    else if(mkt.includes('JPaola') || mkt.includes('Jpaola')) byMkt['JPaola']++;
+    else if(mkt.includes('FCS')) byMkt['FCS']++;
+    else byMkt['Sem origem']++;
+  });
+  const mktColors = { RP:'#8b5cf6', JPaola:'#06b6d4', FCS:'#10b981', 'Sem origem':'#6b7280' };
+  const maxMkt = Math.max(...Object.values(byMkt), 1);
+  document.getElementById('metricsByMkt').innerHTML = Object.entries(byMkt)
+    .filter(([,v]) => v > 0)
+    .sort((a,b) => b[1]-a[1])
+    .map(([name, count]) => {
+      const color = mktColors[name] || '#6366f1';
+      return `<div class="sb-item">
+        <div class="sb-dot" style="background:${color};"></div>
+        <div class="sb-name">${esc(name)}</div>
+        <div class="sb-bar-wrap"><div class="sb-bar" style="width:${(count/maxMkt)*100}%;background:${color};"></div></div>
+        <div class="sb-val" style="color:${color};">${count}</div>
+      </div>`;
+    }).join('') || '<div class="empty-state" style="padding:20px;">—</div>';
 }
 
 async function init(){
