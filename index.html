@@ -698,29 +698,39 @@ function showToast(msg,type='info'){
 }
 
 // ════════════════════════════════════════════════
-//  API — Apps Script
+//  API — Apps Script (JSONP — bypassa CORS)
 // ════════════════════════════════════════════════
+let _jid = 0;
 function callAPI(params){
   return new Promise((resolve, reject) => {
-    // Apps Script redireciona para googleusercontent.com
-    // Usamos XMLHttpRequest que lida melhor com redirects cross-origin
-    const url = SCRIPT_URL + '?' + new URLSearchParams(params);
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.withCredentials = false;
-    xhr.timeout = 15000;
-    xhr.onload = function() {
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch(e) { resolve({ ok: true }); }
+    const cbName = '__apicb_' + (++_jid);
+    const allParams = { ...params, callback: cbName };
+    const url = SCRIPT_URL + '?' + new URLSearchParams(allParams);
+
+    // Timeout de 15s
+    const timer = setTimeout(() => {
+      if (window[cbName]) {
+        delete window[cbName];
+        try { document.head.removeChild(sc); } catch(e) {}
+        reject(new Error('Timeout — tente novamente'));
+      }
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timer);
+      delete window[cbName];
+      try { document.head.removeChild(sc); } catch(e) {}
+      resolve(data);
     };
-    xhr.onerror = function() {
-      // Fallback: tenta fetch com no-cors (fire-and-forget para writes)
-      fetch(url, { mode: 'no-cors', redirect: 'follow' })
-        .then(() => resolve({ ok: true }))
-        .catch(() => reject(new Error('Conexão falhou')));
+
+    const sc = document.createElement('script');
+    sc.src = url;
+    sc.onerror = function() {
+      clearTimeout(timer);
+      delete window[cbName];
+      reject(new Error('Conexao falhou'));
     };
-    xhr.ontimeout = function() { reject(new Error('Timeout')); };
-    xhr.send();
+    document.head.appendChild(sc);
   });
 }
 
