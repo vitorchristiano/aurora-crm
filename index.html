@@ -616,7 +616,7 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
 // ════════════════════════════════════════════════
 const CREDENTIALS = { aurora: 'aurora@2025', admin: 'admin123' }; // usuário: senha
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHifI6uuJaCBx2LHu-m_MDRgiBS_UsBj9RgPYiShuU6bTzm6KGk1xkRhEXaqycnGE/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-kBPnKh7cNSCbjGYmgCXVA5oU1R6EY4Nu_9zDm0j3jmBDst3Mt3JxZKnRAE3rcoc/exec';
 
 const SOURCES = [
   { id:'RP',     gid:'2074633587' },
@@ -705,31 +705,29 @@ let _jid = 0;
 function callAPI(params){
   return new Promise((resolve, reject) => {
     const cbName = '__apicb_' + (++_jid);
-    const allParams = { ...params, callback: cbName };
-    const url = SCRIPT_URL + '?' + new URLSearchParams(allParams);
+    const url = SCRIPT_URL + '?' + new URLSearchParams({...params, callback: cbName});
 
-    // Timeout de 15s
+    const sc = document.createElement('script');
+
     const timer = setTimeout(() => {
-      if (window[cbName]) {
-        delete window[cbName];
-        try { document.head.removeChild(sc); } catch(e) {}
-        reject(new Error('Timeout — tente novamente'));
-      }
+      delete window[cbName];
+      try { document.head.removeChild(sc); } catch(err) {}
+      reject(new Error('Timeout — verifique sua conexao'));
     }, 15000);
 
     window[cbName] = function(data) {
       clearTimeout(timer);
       delete window[cbName];
-      try { document.head.removeChild(sc); } catch(e) {}
+      try { document.head.removeChild(sc); } catch(err) {}
       resolve(data);
     };
 
-    const sc = document.createElement('script');
     sc.src = url;
     sc.onerror = function() {
       clearTimeout(timer);
       delete window[cbName];
-      reject(new Error('Conexao falhou'));
+      try { document.head.removeChild(sc); } catch(err) {}
+      reject(new Error('Script nao carregou — verifique o Apps Script'));
     };
     document.head.appendChild(sc);
   });
@@ -1218,7 +1216,7 @@ function renderKanban(){
     col.className='k-col '+(STAGE_COLS[stage]||'');
     col.innerHTML=`<div class="k-col-head"><span class="k-col-title">${stage}</span><span class="k-col-count">${cards.length}</span></div>
       <div class="k-col-body" id="kcol-${stage.replace(/\s/g,'-')}"
-        ondragover="e.preventDefault();this.classList.add('drag-over')"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
         ondragleave="this.classList.remove('drag-over')"
         ondrop="onDrop(event,this,'${stage}')">
         ${cards.length===0?'<div class="k-empty">Arraste um lead aqui</div>':''}
