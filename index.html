@@ -698,21 +698,29 @@ function showToast(msg,type='info'){
 }
 
 // ════════════════════════════════════════════════
-//  API — Apps Script (fetch direto)
+//  API — Apps Script
 // ════════════════════════════════════════════════
 function callAPI(params){
   return new Promise((resolve, reject) => {
+    // Apps Script redireciona para googleusercontent.com
+    // Usamos XMLHttpRequest que lida melhor com redirects cross-origin
     const url = SCRIPT_URL + '?' + new URLSearchParams(params);
-    fetch(url, { redirect: 'follow' })
-      .then(r => {
-        if(!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
-      })
-      .then(text => {
-        try { resolve(JSON.parse(text)); }
-        catch(e) { resolve({ ok: true }); }
-      })
-      .catch(err => reject(new Error('Conexão falhou: ' + err.message)));
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.withCredentials = false;
+    xhr.timeout = 15000;
+    xhr.onload = function() {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch(e) { resolve({ ok: true }); }
+    };
+    xhr.onerror = function() {
+      // Fallback: tenta fetch com no-cors (fire-and-forget para writes)
+      fetch(url, { mode: 'no-cors', redirect: 'follow' })
+        .then(() => resolve({ ok: true }))
+        .catch(() => reject(new Error('Conexão falhou')));
+    };
+    xhr.ontimeout = function() { reject(new Error('Timeout')); };
+    xhr.send();
   });
 }
 
