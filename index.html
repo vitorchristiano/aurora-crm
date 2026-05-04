@@ -958,7 +958,20 @@ function openClientModal(cnpj,idx){
 
   // Export btn
   const exp=exportedSet.has(cnpj);
-  setExportBtn(exp?'done':'idle', exp?'Já exportado para o CRM':'Exportar este cliente para o CRM');
+  if(exp){
+    setExportBtn('idle','🔄 Exportar novamente para o CRM');
+    document.getElementById('btnExport').querySelector && null; // reset visual
+    const btn=document.getElementById('btnExport');
+    const ico=document.getElementById('btnExportIcon');
+    const txt=document.getElementById('btnExportText');
+    setTimeout(()=>{
+      if(btn){btn.className='export-btn idle';btn.disabled=false;}
+      if(ico) ico.textContent='🔄';
+      if(txt) txt.textContent='Exportar novamente para o CRM';
+    },50);
+  } else {
+    setExportBtn('idle','Exportar este cliente para o CRM');
+  }
 
   // Reset tabs
   switchTab('dados', document.querySelector('.tab-btn'));
@@ -1086,12 +1099,35 @@ function setExportBtn(state,msg){
   const ico=document.getElementById('btnExportIcon');
   const txt=document.getElementById('btnExportText');
   if(!btn) return;
-  btn.className='export-btn '+state;
-  btn.disabled=state==='loading'||state==='done';
-  if(state==='idle')   {ico.textContent='⭐';txt.textContent=msg||'Exportar este cliente para o CRM';}
-  if(state==='loading'){ico.textContent='↻';txt.textContent=msg||'Exportando...';}
-  if(state==='done')   {ico.textContent='✓';txt.textContent=msg||'Exportado!';}
-  if(state==='error')  {ico.textContent='✕';txt.textContent=msg||'Erro. Tente novamente.'; btn.disabled=false;}
+  btn.disabled = state==='loading';
+  if(state==='idle'){
+    btn.className='export-btn idle';
+    ico.textContent='⭐'; txt.textContent=msg||'Exportar este cliente para o CRM';
+  }
+  if(state==='loading'){
+    btn.className='export-btn loading';
+    ico.textContent='↻'; txt.textContent=msg||'Exportando...';
+  }
+  if(state==='done'){
+    // Mostra confirmação por 2s depois vira "Exportar novamente"
+    btn.className='export-btn done';
+    ico.textContent='✓'; txt.textContent=msg||'Exportado com sucesso!';
+    setTimeout(()=>{
+      const b=document.getElementById('btnExport');
+      const i=document.getElementById('btnExportIcon');
+      const t=document.getElementById('btnExportText');
+      if(b&&b.className.includes('done')){
+        b.className='export-btn idle';
+        b.disabled=false;
+        if(i) i.textContent='🔄';
+        if(t) t.textContent='Exportar novamente para o CRM';
+      }
+    }, 2000);
+  }
+  if(state==='error'){
+    btn.className='export-btn error';
+    ico.textContent='✕'; txt.textContent=msg||'Erro. Tente novamente.';
+  }
 }
 
 async function exportToCRM(){
@@ -1149,11 +1185,24 @@ async function loadCRM(){
   document.getElementById('kanban').innerHTML='<div class="loading-screen"><span class="spinner"></span>Carregando leads...</div>';
   try{
     const data=await callAPI({action:'getLeads'});
+    if(data && data.error){
+      document.getElementById('kanban').innerHTML=`<div class="empty-state">Erro do servidor: ${esc(data.error)}</div>`;
+      return;
+    }
     leads=Array.isArray(data)?data:[];
     crmLoaded=true;
-    renderKanban();
+    if(leads.length===0){
+      // Tenta renderizar mesmo vazio para mostrar as colunas
+      renderKanban();
+    } else {
+      renderKanban();
+    }
   }catch(e){
-    document.getElementById('kanban').innerHTML=`<div class="empty-state">Erro ao carregar leads: ${esc(e.message)}</div>`;
+    document.getElementById('kanban').innerHTML=
+      `<div class="empty-state" style="flex-direction:column;gap:12px;">
+        <div>Erro: ${esc(e.message)}</div>
+        <button class="btn btn-accent" onclick="loadCRM()" style="margin-top:8px;">Tentar novamente</button>
+      </div>`;
   }
 }
 
@@ -1441,6 +1490,10 @@ function loadTheme(){
 
 async function init(){
   await loadDash();
+  // Pré-carrega leads do CRM em background
+  setTimeout(() => {
+    if(!crmLoaded) loadCRM();
+  }, 2000);
 }
 </script>
 </body>
