@@ -25,6 +25,66 @@
   --radius:   12px;
 }
 
+[data-theme="light"] {
+  --bg:       #f1f5f9;
+  --surface:  #ffffff;
+  --surface2: #f8fafc;
+  --border:   #e2e8f0;
+  --text:     #0f172a;
+  --muted:    #64748b;
+  --accent:   #6366f1;
+  --accent2:  #4f46e5;
+  --green:    #059669;
+  --amber:    #d97706;
+  --red:      #dc2626;
+  --rp:       #7c3aed;
+  --jp:       #0891b2;
+  --fcs:      #059669;
+}
+
+[data-theme="light"] .sidebar {
+  background: #fff;
+  border-right-color: #e2e8f0;
+  box-shadow: 2px 0 8px rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .modal-hd {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+}
+
+[data-theme="light"] .login-box {
+  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+}
+
+[data-theme="light"] .k-card {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+[data-theme="light"] .k-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+}
+
+[data-theme="light"] thead th {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] tbody tr:hover {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .nav-item:hover {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .nav-item.active {
+  background: rgba(99,102,241,.1);
+}
+
+[data-theme="light"] #loginScreen {
+  background: radial-gradient(ellipse at 30% 50%, #e0e7ff 0%, #f1f5f9 60%);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
 
@@ -342,6 +402,11 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
       </button>
     </nav>
     <div class="sidebar-footer" id="sidebarUser"></div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border);">
+      <button onclick="toggleTheme()" id="themeBtn" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;font-family:inherit;">
+        <span id="themeIcon">☀️</span><span id="themeLabel">Tema claro</span>
+      </button>
+    </div>
   </div>
 
   <!-- MAIN -->
@@ -550,7 +615,7 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
 // ════════════════════════════════════════════════
 const CREDENTIALS = { aurora: 'aurora@2025', admin: 'admin123' }; // usuário: senha
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-kBPnKh7cNSCbjGYmgCXVA5oU1R6EY4Nu_9zDm0j3jmBDst3Mt3JxZKnRAE3rcoc/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHifI6uuJaCBx2LHu-m_MDRgiBS_UsBj9RgPYiShuU6bTzm6KGk1xkRhEXaqycnGE/exec';
 
 const SOURCES = [
   { id:'RP',     gid:'2074633587' },
@@ -575,6 +640,7 @@ function doLogin(){
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('sidebarUser').textContent = '👤 ' + u;
+    loadTheme();
     init();
   } else {
     document.getElementById('loginError').style.display = 'block';
@@ -1307,6 +1373,35 @@ function selectStage(s,btn){ selStage(s,btn); }
 // ════════════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════════════
+
+// ── TEMA ──────────────────────────────────────────────────
+function toggleTheme(){
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  if(next === 'light'){
+    html.setAttribute('data-theme','light');
+    document.getElementById('themeIcon').textContent = '🌙';
+    document.getElementById('themeLabel').textContent = 'Tema escuro';
+  } else {
+    html.removeAttribute('data-theme');
+    document.getElementById('themeIcon').textContent = '☀️';
+    document.getElementById('themeLabel').textContent = 'Tema claro';
+  }
+  localStorage.setItem('aurora_theme', next);
+}
+
+function loadTheme(){
+  const saved = localStorage.getItem('aurora_theme');
+  if(saved === 'light'){
+    document.documentElement.setAttribute('data-theme','light');
+    const icon = document.getElementById('themeIcon');
+    const label = document.getElementById('themeLabel');
+    if(icon) icon.textContent = '🌙';
+    if(label) label.textContent = 'Tema escuro';
+  }
+}
+
 async function init(){
   await loadDash();
 }
