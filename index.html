@@ -1337,14 +1337,53 @@ async function onDrop(e,col,stage){
   if(!cnpj) return;
   const lead=leads.find(l=>l.cnpj===cnpj);
   if(!lead||lead.etapa_kanban===stage) return;
-  lead.etapa_kanban=stage;
+
+  // 1. Atualiza local imediatamente
+  const oldStage = lead.etapa_kanban;
+  lead.etapa_kanban = stage;
+  lead.status = stage;
   renderKanban();
-  try{ 
-    const res = await callAPI({action:'updateStage',cnpj,etapa_kanban:stage,autor:currentUser});
-    if(res && res.error) showToast('Erro: '+res.error,'error');
-    else showToast('Movido para '+stage,'success'); 
+  showToast('Salvando...', 'info');
+
+  // 2. Salva no Apps Script usando saveLead completo (garante que persiste)
+  try {
+    const payload = {
+      action: 'saveLead',
+      cnpj:            lead.cnpj,
+      nome:            lead.nome            || '',
+      telefone:        lead.telefone        || '',
+      whatsapp:        lead.whatsapp        || '',
+      email:           lead.email           || '',
+      instagram:       lead.instagram       || '',
+      produto_vendido: lead.produto_vendido || '',
+      marketplace:     lead.marketplace     || '',
+      historico_venda: lead.historico_venda || '',
+      produto_similar: lead.produto_similar || '',
+      possivel_dor:    lead.possivel_dor    || '',
+      responsavel:     lead.responsavel     || currentUser,
+      status:          stage,
+      proxima_acao:    lead.proxima_acao    || '',
+      observacoes:     lead.observacoes     || '',
+      data_contato:    lead.data_contato    || '',
+      etapa_kanban:    stage,
+    };
+    const res = await callAPI(payload);
+    if(res && res.error){
+      // Reverte se falhou
+      lead.etapa_kanban = oldStage;
+      lead.status = oldStage;
+      renderKanban();
+      showToast('Erro ao salvar: ' + res.error, 'error');
+    } else {
+      showToast('✓ Movido para ' + stage, 'success');
+    }
+  } catch(err) {
+    // Reverte se falhou
+    lead.etapa_kanban = oldStage;
+    lead.status = oldStage;
+    renderKanban();
+    showToast('Erro: ' + err.message, 'error');
   }
-  catch(e){ showToast('Erro ao salvar: '+e.message,'error'); }
 }
 
 // ════════════════════════════════════════════════
