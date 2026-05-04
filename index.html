@@ -379,7 +379,7 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
     </div>
     <div class="login-field">
       <label>Senha</label>
-      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(e.key==='Enter')doLogin()">
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="login-btn" onclick="doLogin()">Entrar</button>
     <div class="login-error" id="loginError">Usuário ou senha incorretos.</div>
