@@ -698,19 +698,21 @@ function showToast(msg,type='info'){
 }
 
 // ════════════════════════════════════════════════
-//  API — Apps Script (JSONP)
+//  API — Apps Script (fetch direto)
 // ════════════════════════════════════════════════
-let jid=0;
 function callAPI(params){
-  return new Promise((resolve,reject)=>{
-    const cb='__cb_'+(++jid);
-    const url=SCRIPT_URL+'?'+new URLSearchParams({...params,callback:cb});
-    window[cb]=(data)=>{ delete window[cb]; try{document.head.removeChild(sc)}catch(e){} resolve(data); };
-    const sc=document.createElement('script');
-    sc.src=url;
-    sc.onerror=()=>{ delete window[cb]; reject(new Error('Conexão falhou')); };
-    document.head.appendChild(sc);
-    setTimeout(()=>{ if(window[cb]){ delete window[cb]; try{document.head.removeChild(sc)}catch(e){} reject(new Error('Timeout')); }},15000);
+  return new Promise((resolve, reject) => {
+    const url = SCRIPT_URL + '?' + new URLSearchParams(params);
+    fetch(url, { redirect: 'follow' })
+      .then(r => {
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(text => {
+        try { resolve(JSON.parse(text)); }
+        catch(e) { resolve({ ok: true }); }
+      })
+      .catch(err => reject(new Error('Conexão falhou: ' + err.message)));
   });
 }
 
