@@ -615,7 +615,7 @@ td.date { font-size: 11px; color: var(--muted); white-space: nowrap; }
 // ════════════════════════════════════════════════
 const CREDENTIALS = { aurora: 'aurora@2025', admin: 'admin123' }; // usuário: senha
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-kBPnKh7cNSCbjGYmgCXVA5oU1R6EY4Nu_9zDm0j3jmBDst3Mt3JxZKnRAE3rcoc/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxHifI6uuJaCBx2LHu-m_MDRgiBS_UsBj9RgPYiShuU6bTzm6KGk1xkRhEXaqycnGE/exec';
 
 const SOURCES = [
   { id:'RP',     gid:'2074633587' },
@@ -1168,7 +1168,7 @@ function buildKCard(lead){
       ${lead.responsavel?`<span class="k-card-tag tag-resp">${esc(lead.responsavel)}</span>`:''}
       ${lead.status?`<span class="k-card-tag tag-status">${esc(lead.status)}</span>`:''}
     </div>
-    ${lead.atualizado_em?`<div class="k-card-date">${esc(lead.atualizado_em)}</div>`:''}`;
+    ${lead.atualizado_em?`<div class="k-card-date">${esc(fmtDateStr(lead.atualizado_em))}</div>`:''}`;
   div.onclick=()=>openLeadModal(lead);
   div.ondragstart=e=>{e.dataTransfer.setData('cnpj',lead.cnpj);div.classList.add('dragging');};
   div.ondragend=()=>div.classList.remove('dragging');
@@ -1183,8 +1183,12 @@ async function onDrop(e,col,stage){
   if(!lead||lead.etapa_kanban===stage) return;
   lead.etapa_kanban=stage;
   renderKanban();
-  try{ await callAPI({action:'updateStage',cnpj,etapa_kanban:stage,autor:currentUser}); showToast('Movido para '+stage,'success'); }
-  catch(e){ showToast('Erro ao salvar','error'); }
+  try{ 
+    const res = await callAPI({action:'updateStage',cnpj,etapa_kanban:stage,autor:currentUser});
+    if(res && res.error) showToast('Erro: '+res.error,'error');
+    else showToast('Movido para '+stage,'success'); 
+  }
+  catch(e){ showToast('Erro ao salvar: '+e.message,'error'); }
 }
 
 // ════════════════════════════════════════════════
@@ -1375,6 +1379,19 @@ function selectStage(s,btn){ selStage(s,btn); }
 // ════════════════════════════════════════════════
 
 // ── TEMA ──────────────────────────────────────────────────
+
+function fmtDateStr(raw){
+  if(!raw) return '';
+  // Se vier como objeto Date serializado (ex: "Mon May 04 2026...")
+  if(raw.toString().includes('GMT') || raw.toString().match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/)){
+    const d = new Date(raw);
+    return isNaN(d) ? raw : d.toLocaleDateString('pt-BR');
+  }
+  // Se já vier formatado dd/MM/yyyy HH:mm
+  if(raw.match(/^\d{2}\/\d{2}\/\d{4}/)) return raw.slice(0,10);
+  return raw;
+}
+
 function toggleTheme(){
   const html = document.documentElement;
   const current = html.getAttribute('data-theme');
