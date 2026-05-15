@@ -507,8 +507,8 @@ async function abrirPorCnpj(cnpj){
   document.getElementById('npanel').classList.remove('open');
   showPage('clients',document.querySelectorAll('.nav-item')[2]);
   await loadClients();
-  const c=clients.find(x=>x.cnpj===cnpj||x.cnpj.replace(/\D/g,'')===cnpj.replace(/\D/g,''));
-  if(c)openClientModal(c);
+  const cidx=clients.findIndex(x=>x.cnpj===cnpj||x.cnpj.replace(/\D/g,'')===cnpj.replace(/\D/g,''));
+  if(cidx>=0)openClientModal(cidx);
 }
 function isCNPJ(d){return d&&String(d).replace(/\D/g,'').length===14;}
 function fmtCNPJ(d){const c=String(d).replace(/\D/g,'').padStart(14,'0');return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
@@ -553,7 +553,8 @@ function applyFilters(){
   const q=document.getElementById('dashSearch').value.toLowerCase().trim();
   fData=aData.filter(c=>{
     const mok=aFilter==='all'||c.mktsArr.includes(aFilter);
-    const tok=!q||c.name.toLowerCase().includes(q)||c.cnpj.replace(/\D/g,'').includes(q.replace(/\D/g,''))||c.cnpj.toLowerCase().includes(q);
+    const nameLower=(c.name||'').toLowerCase();const cnpjClean=(c.cnpj||'').replace(/\D/g,'');const qClean=q.replace(/\D/g,'');
+    const tok=!q||nameLower.includes(q)||cnpjClean.includes(qClean)||(qClean.length>0&&cnpjClean.includes(qClean));
     return mok&&tok;
   });
   dPage=1;renderKPIs(fData);renderCharts(fData);renderDashTable();
@@ -719,8 +720,8 @@ function openNewLead(){
 function renderStageSel(cur){document.getElementById('mStage').innerHTML=STAGES.map(s=>`<button class="sbtn ${s.id===cur?'active':''}" onclick="selStage('${escA(s.id)}',this)">${s.id}</button>`).join('');}
 function selStage(stage,btn){
   document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  const cnpj=mCrm?mCrm.cnpj:null;
-  if(cnpj){const lead=leads.find(l=>l.cnpj===cnpj);if(lead){const o=lead.etapa_kanban;lead.etapa_kanban=stage;lead.status=stage;api({action:'saveLead',cnpj,nome:lead.nome||'',telefone:lead.telefone||'',whatsapp:lead.whatsapp||'',email:lead.email||'',instagram:lead.instagram||'',produto_vendido:lead.produto_vendido||'',marketplace:lead.marketplace||'',historico_venda:lead.historico_venda||'',produto_similar:lead.produto_similar||'',possivel_dor:lead.possivel_dor||'',responsavel:lead.responsavel||CU,status:stage,proxima_acao:lead.proxima_acao||'',observacoes:lead.observacoes||'',data_contato:lead.data_contato||'',etapa_kanban:stage}).then(r=>{if(r&&r.error){lead.etapa_kanban=o;toast('Erro ao salvar etapa','error');}else{toast('✓ Etapa: '+stage,'success');if(crmOk)renderKanban();}}).catch(()=>toast('Erro ao salvar etapa','error'));}}
+  const cnpj=mCrm?mCrm.cnpj:(mClient?mClient.cnpj:null);
+  if(cnpj){const lead=leads.find(l=>l.cnpj===cnpj||l.cnpj.replace(/\D/g,'')===cnpj.replace(/\D/g,''));if(lead){const o=lead.etapa_kanban;lead.etapa_kanban=stage;lead.status=stage;api({action:'saveLead',cnpj:lead.cnpj,nome:lead.nome||'',telefone:lead.telefone||'',whatsapp:lead.whatsapp||'',email:lead.email||'',instagram:lead.instagram||'',produto_vendido:lead.produto_vendido||'',marketplace:lead.marketplace||'',historico_venda:lead.historico_venda||'',produto_similar:lead.produto_similar||'',possivel_dor:lead.possivel_dor||'',responsavel:lead.responsavel||CU,status:stage,proxima_acao:lead.proxima_acao||'',observacoes:lead.observacoes||'',data_contato:lead.data_contato||'',etapa_kanban:stage}).then(r=>{if(r&&r.error){lead.etapa_kanban=o;lead.status=o;toast('Erro ao salvar etapa','error');}else{lead.etapa_kanban=stage;lead.status=stage;toast('✓ Etapa: '+stage,'success');if(crmOk)renderKanban();}}).catch(()=>{lead.etapa_kanban=o;lead.status=o;toast('Erro ao salvar etapa','error');});}}
 }
 function getStage(){const a=document.querySelector('.sbtn.active');return a?a.textContent:'Novo Lead';}
 function clearForm(){['fCnpj','fNome','fTelefone','fWhatsapp','fEmail','fInstagram','fProduto','fMarketplace','fHistorico','fProdutoSim','fDor','fResponsavel','fProxAcao','fObs','fDataContato'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const fs=document.getElementById('fStatus');if(fs)fs.value='Novo Lead';const fr=document.getElementById('fResponsavel');if(fr)fr.value=CU;}
@@ -758,14 +759,14 @@ function renderClients(){
   fil.forEach(c=>{
     const ini=(c.nome||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
     const tags=[c.telefone?`📞 ${esc(c.telefone)}`:'',c.marketplace?`🏪 ${esc(c.marketplace)}`:'',c.historico_venda?`📦 ${esc(c.historico_venda.slice(0,40))}`:''].filter(Boolean);
-    const cJson=JSON.stringify(c).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    h+=`<div class="crow" onclick="openClientModal('${escA(JSON.stringify(c))}')"><div class="cav">${ini}</div><div class="cinfo"><div class="cn">${esc(c.nome||'Sem nome')}</div><div class="cc">${esc(c.cnpj)}</div><div class="cmeta">${tags.map(t=>`<span class="ctg">${t}</span>`).join('')}</div></div><div class="carr">›</div></div>`;
+    const cidx=fil.indexOf(c);
+    h+=`<div class="crow" onclick="openClientModal(${cidx})"><div class="cav">${ini}</div><div class="cinfo"><div class="cn">${esc(c.nome||'Sem nome')}</div><div class="cc">${esc(c.cnpj)}</div><div class="cmeta">${tags.map(t=>`<span class="ctg">${t}</span>`).join('')}</div></div><div class="carr">›</div></div>`;
   });
   document.getElementById('clientsContainer').innerHTML=`<div class="twrap">${h}</div>`;
 }
-function openClientModal(clientStr){
-  let client;
-  try{client=typeof clientStr==='string'?JSON.parse(clientStr):clientStr;}catch(e){return;}
+function openClientModal(idx){
+  const client=typeof idx==='number'?clients[idx]:idx;
+  if(!client)return;
   curCnpj=client.cnpj;
   document.getElementById('cmTitle').textContent=client.nome||client.cnpj;
   document.getElementById('cmCnpj').textContent=client.cnpj;
